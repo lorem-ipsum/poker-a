@@ -383,26 +383,11 @@ int main() {
   vec.push_back({8, SPADE});
   vec.push_back({8, SPADE});
   vec.push_back({7, SPADE});
-  // vec.push_back({7, SPADE});
-  // vec.push_back({9, SPADE});
-  // vec.push_back({9, SPADE});
-  // vec.push_back({8, SPADE});
-  // vec2.push_back({9, SPADE});
-  // vec2.push_back({9, SPADE});
-  // vec2.push_back({9, SPADE});
-  vec2.push_back({10, SPADE});
-  vec2.push_back({10, SPADE});
-  vec2.push_back({10, SPADE});
-  vec2.push_back({10, SPADE});
-  // vec2.push_back({10, SPADE});
-  // vec2.push_back({11, SPADE});
-  // vec2.push_back({11, SPADE});
-  // vec2.push_back({11, SPADE});
-  // vec2.push_back({3, SPADE});
-  // vec2.push_back({3, SPADE});
-  // vec2.push_back({3, SPADE});
 
-  // vec2.push_back({9, SPADE});
+  vec2.push_back({10, SPADE});
+  vec2.push_back({10, SPADE});
+  vec2.push_back({10, SPADE});
+  vec2.push_back({10, SPADE});
 
   Cards c(vec);
   Cards c2(vec2);
