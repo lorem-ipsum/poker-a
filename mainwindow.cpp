@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QTime>
 #include <algorithm>
+#include <ctime>
 
 PlayerA::PlayerA(QWidget* parent) : QMainWindow(parent) {
   setFixedSize(1200, 800);
@@ -16,6 +17,7 @@ PlayerA::PlayerA(QWidget* parent) : QMainWindow(parent) {
   buttonStartListening->setText("Start connecting...");
   connect(buttonStartListening, SIGNAL(clicked()), this,
           SLOT(startListening()));
+  connect(this, SIGNAL(allHaveCalled()), this, SLOT(afterAllHaveCalled()));
 
   // Game started
 }
@@ -55,8 +57,28 @@ void PlayerA::handleConnections() {
 }
 
 // 大致上是对方write时调用
-void PlayerA::socketReadDataFromB() {}
-void PlayerA::socketReadDataFromC() {}
+void PlayerA::socketReadDataFromB() {
+  qDebug() << "A IS READING FROM BUFFER FROM B";
+  QByteArray buffer = socketAB_->readAll();
+
+  QString doesBCampaign = readFromBuffer(buffer, "doYouWantToCampaign");
+  if (!doesBCampaign.isEmpty()) {
+    showOthersIfCampaignInfo(1, doesBCampaign == "true");
+    ifWantToCampaign(1, doesBCampaign == "true");
+    askIfCallLandlord(2);
+  }
+}
+void PlayerA::socketReadDataFromC() {
+  qDebug() << "A IS READING FROM BUFFER FROM C";
+  QByteArray buffer = socketAC_->readAll();
+
+  QString doesCCampaign = readFromBuffer(buffer, "doYouWantToCampaign");
+  if (!doesCCampaign.isEmpty()) {
+    showOthersIfCampaignInfo(2, doesCCampaign == "true");
+    ifWantToCampaign(2, doesCCampaign == "true");
+    askIfCallLandlord(0);
+  }
+}
 void PlayerA::socketDisconnectedFromB() {}
 void PlayerA::socketDisconnectedFromC() {}
 
@@ -78,7 +100,17 @@ void PlayerA::firstCampaign(int n) {
   for (int i = 0; i < 54; ++i) {
     cards_index.push_back(i);
   }
+  srand(time(nullptr));
   std::random_shuffle(cards_index.begin(), cards_index.end());
+  std::sort(cards_index.begin(), cards_index.begin() + 17);
+  std::sort(cards_index.begin() + 17, cards_index.begin() + 34);
+  std::sort(cards_index.begin() + 34, cards_index.begin() + 51);
+  std::sort(cards_index.begin() + 51, cards_index.begin() + 54);
+
+  for (int i = 0; i < 17; ++i) {
+    cardsOfA_.append(cards_index[i]);
+  }
+  displayCards();
 
   QString cb;
   for (int i = 17; i < 34; ++i) {
@@ -94,19 +126,13 @@ void PlayerA::firstCampaign(int n) {
   }
   castToC("cardsAssignedToC", cc);
 
-  n = 0;
-
-  if (n == 0) {
-    //自己
-    askIfCallLandlord(0);
-  } else if (n == 1) {
-    // B
-    askIfCallLandlord(1);
-
-  } else if (n == 2) {
-    // C
-    askIfCallLandlord(2);
+  for (int i = 51; i < 54; ++i) {
+    commonCards_.append(cards_index[i]);
   }
+
+  n = 1;
+  currentLandlord_ = n;
+  askIfCallLandlord(n);
 }
 
 void PlayerA::askIfCallLandlord(int n) {
@@ -115,10 +141,11 @@ void PlayerA::askIfCallLandlord(int n) {
 
   // 检查是否所有人都叫过地主了
   ++currentCallNumber_;
-  if (currentCallNumber_ == 3) {
+  if (currentCallNumber_ == 4) {
     emit allHaveCalled();
     return;
   }
+  // currentLandlord_ = n;
 
   if (n == 0) {
     //自己弹窗
@@ -145,26 +172,142 @@ void PlayerA::askIfCallLandlord(int n) {
     connect(noBtn, &QPushButton::clicked,
             [=]() { ifWantToCampaign(0, false); });
 
-    connect(yesBtn, &QPushButton::clicked, [=]() { askIfCallLandlord(1); });
+    connect(yesBtn, &QPushButton::clicked, [=]() {
+      currentLandlord_ = 0;
+      askIfCallLandlord(1);
+    });
     connect(noBtn, &QPushButton::clicked, [=]() { askIfCallLandlord(1); });
+  } else if (n == 1) {
+    //问B
+    sleep(50);
+    castToB("doYouWantToCampaign", "info");
+  } else if (n == 2) {
+    sleep(50);
+    castToC("doYouWantToCampaign", "info");
   }
 }
 
 void PlayerA::ifWantToCampaign(int n, bool b) {
+  qDebug() << "A send ifWantToCampaign info";
   if (b) {
-    boardCast("wantToCampaign", n);
+    currentLandlord_ = n;
+    boardCast("ifWantToCampaign", QString::number(10 * n + 1));
   } else {
-    boardCast("notWantToCampaign", n);
+    boardCast("ifWantToCampaign", QString::number(10 * n + 0));
   }
 
-  if (n == 0) {
-    showSelfIfCampaignInfo(b);
+  showOthersIfCampaignInfo(n, b);
+}
+
+void PlayerA::showOthersIfCampaignInfo(int personPosition, bool ifCampaign) {
+  if (personPosition == 0) {
+    QLabel* jiaoORbujiao = new QLabel(this);
+    jiaoORbujiao->setText(ifCampaign ? "叫" : "不叫");
+    jiaoORbujiao->setGeometry(580, 400, 40, 32);
+    jiaoORbujiao->show();
+  } else if (personPosition == 1) {
+    QLabel* jiaoORbujiao = new QLabel(this);
+    jiaoORbujiao->setText(ifCampaign ? "叫" : "不叫");
+    jiaoORbujiao->setGeometry(160, 200, 40, 32);
+    jiaoORbujiao->show();
+  } else if (personPosition == 2) {
+    QLabel* jiaoORbujiao = new QLabel(this);
+    jiaoORbujiao->setText(ifCampaign ? "叫" : "不叫");
+    jiaoORbujiao->setGeometry(960, 200, 40, 32);
+    jiaoORbujiao->show();
   }
 }
 
-void PlayerA::showSelfIfCampaignInfo(bool b) {
-  QLabel* jiaoORbujiao = new QLabel(this);
-  jiaoORbujiao->setText(b ? "叫" : "不叫");
-  jiaoORbujiao->setGeometry(220, 220, 50, 50);
-  jiaoORbujiao->show();
+void PlayerA::displayCards() {
+  // 先删除之前的卡
+  for (QLabel* item : cardLabels_) {
+    item->hide();
+    delete item;
+  }
+
+  // SHOW
+  for (int i = 0; i < cardsOfA_.size(); ++i) {
+    CardLabel* cardLabel = new CardLabel(this);
+    cardLabels_.append(cardLabel);
+    QPixmap cardImage =
+        QPixmap("./assets/" + QString::number(cardsOfA_[i]) + ".png");
+    cardImage = cardImage.scaled(QSize(330, 160), Qt::IgnoreAspectRatio,
+                                 Qt::SmoothTransformation);
+    cardLabel->setPixmap(cardImage);
+    cardLabel->setGeometry(80 + 50 * i, 600, 360, 200);
+    cardLabel->show();
+  }
 }
+
+void PlayerA::displayCommonCards(QList<int> commonCards) {
+  for (int i = 0; i < commonCards.size(); ++i) {
+    CardLabel* cardLabel = new CardLabel(this);
+    QPixmap cardImage =
+        QPixmap("./assets/" + QString::number(commonCards[i]) + ".png");
+    cardImage = cardImage.scaled(QSize(330, 160), Qt::IgnoreAspectRatio,
+                                 Qt::SmoothTransformation);
+    cardLabel->setPixmap(cardImage);
+    cardLabel->setGeometry(500 + 50 * i, 50, 360, 200);
+    cardLabel->show();
+  }
+}
+
+void PlayerA::afterAllHaveCalled() {
+  qDebug() << "After all have called";
+  sleep(50);
+  boardCast("commonCards", intArrayToString(commonCards_));
+  displayCommonCards(commonCards_);
+  if (currentLandlord_ == 0) {
+    cardsOfA_.append(commonCards_);
+    std::sort(cardsOfA_.begin(), cardsOfA_.end());
+    displayCards();
+  }
+  sleep(50);
+  boardCast("theLandlordIs", QString::number(currentLandlord_));
+
+  startPlaying();
+}
+
+void PlayerA::startPlaying() {
+  qDebug() << "START Playing!";
+  if (currentLandlord_ == 0) {
+    showChuOrBuchuBtns();
+  } else if (currentLandlord_ == 1) {
+    castToB("chuOrBuchu", "info");
+  } else if (currentLandlord_ == 2) {
+    castToC("chuOrBuchu", "info");
+  }
+}
+
+void PlayerA::showChuOrBuchuBtns() {
+  qDebug() << "A chu or buchu";
+  QPushButton* chuBtn = new QPushButton(this);
+  QPushButton* buchuBtn = new QPushButton(this);
+
+  chuBtn->setText("出牌");
+  buchuBtn->setText("不出");
+  chuBtn->setGeometry(120, 220, 50, 50);
+  buchuBtn->setGeometry(180, 220, 50, 50);
+  chuBtn->show();
+  buchuBtn->show();
+
+  buchuBtn->setDisabled(!canHeOrSheGiveUp_);
+
+  // btn connect
+  connect(chuBtn, SIGNAL(clicked()), this, SLOT(pushCards()));
+  connect(buchuBtn, &QPushButton::clicked, [=]() { giveUp(0); });
+}
+
+void PlayerA::pushCards() {
+  QList<int> cardsToPush;
+  for (int i = 0; i < cardsOfA_.size(); ++i) {
+    if (cardLabels_[i]->isMoved()) {
+      cardsToPush.append(cardsOfA_[i]);
+    }
+  }
+
+  // CHECK TODO
+}
+
+// 第n人放弃了，转交给下一个人
+void PlayerA::giveUp(int n) {}
