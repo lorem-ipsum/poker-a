@@ -81,6 +81,9 @@ void PlayerA::socketReadDataFromB() {
     bcards.append(1);
     castToC("someOneHasPushedCards", intArrayToString(bcards));
     sleep(50);
+
+    if (checkIfGameOver()) return;
+
     castToC("chuOrBuchu", "info");
   }
 
@@ -93,15 +96,15 @@ void PlayerA::socketReadDataFromB() {
     giveUp(1);
   }
 
-  QString doesLandlordWin = readFromBuffer(buffer, "gameOver");
-  if (!doesLandlordWin.isEmpty()) {
-    qDebug() << "B has won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-    landlordWins_ = doesLandlordWin == "true";
-    castToC("gameOver",
-            (landlordWins_ ^ (currentLandlord_ != 2)) ? "true" : "false");
-    showWinOrLoseInfo();
-    showRestartOrExitBtnsOnSelfScreen();
-  }
+  // QString doesLandlordWin = readFromBuffer(buffer, "gameOver");
+  // if (!doesLandlordWin.isEmpty()) {
+  //   qDebug() << "B has won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+  //   landlordWins_ = doesLandlordWin == "true";
+  //   castToC("gameOver",
+  //           (landlordWins_ ^ (currentLandlord_ != 2)) ? "true" : "false");
+  //   showWinOrLoseInfo();
+  //   showRestartOrExitBtnsOnSelfScreen();
+  // }
 }
 void PlayerA::socketReadDataFromC() {
   qDebug() << "A IS READING FROM BUFFER FROM C";
@@ -126,7 +129,10 @@ void PlayerA::socketReadDataFromC() {
     ccards.append(2);
     castToB("someOneHasPushedCards", intArrayToString(ccards));
     sleep(50);
-    castToB("chuOrBuchu", "info");
+
+    if (checkIfGameOver()) return;
+
+    showChuOrBuchuBtns();
   }
 
   QString CHasGivenUp = readFromBuffer(buffer, "CHasGivenUp");
@@ -135,16 +141,16 @@ void PlayerA::socketReadDataFromC() {
     giveUp(2);
   }
 
-  QString doesLandlordWin = readFromBuffer(buffer, "gameOver");
-  qDebug() << "doesLandlordWin = " << doesLandlordWin << "********************";
-  if (!doesLandlordWin.isEmpty()) {
-    qDebug() << "C has won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-    landlordWins_ = doesLandlordWin == "true";
-    castToB("gameOver",
-            (landlordWins_ ^ (currentLandlord_ != 1)) ? "true" : "false");
-    showWinOrLoseInfo();
-    showRestartOrExitBtnsOnSelfScreen();
-  }
+  // QString doesLandlordWin = readFromBuffer(buffer, "gameOver");
+  // qDebug() << "doesLandlordWin = " << doesLandlordWin <<
+  // "********************"; if (!doesLandlordWin.isEmpty()) {
+  //   qDebug() << "C has won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+  //   landlordWins_ = doesLandlordWin == "true";
+  //   castToB("gameOver",
+  //           (landlordWins_ ^ (currentLandlord_ != 1)) ? "true" : "false");
+  //   showWinOrLoseInfo();
+  //   showRestartOrExitBtnsOnSelfScreen();
+  // }
 }
 void PlayerA::socketDisconnectedFromB() {}
 void PlayerA::socketDisconnectedFromC() {}
@@ -403,23 +409,28 @@ void PlayerA::showChuOrBuchuBtns() {
       }
       displayCards();
 
-      AHasJustPushedCards(cardsToPush);
       lastPushCardPerson_ = 0;
 
-      // A出完牌了
-      if (cardsOfA_.isEmpty()) {
-        landlordWins_ = (currentLandlord_ == 0);
-        sleep(50);
-        castToB("gameOver",
-                (landlordWins_ ^ (currentLandlord_ != 1)) ? "true" : "false");
-        castToC("gameOver",
-                (landlordWins_ ^ (currentLandlord_ != 2)) ? "true" : "false");
-        showWinOrLoseInfo();
-        showRestartOrExitBtnsOnSelfScreen();
-        return;
-      }
-      // cardsOnTable_ = cardsToPush;
+      // // A出完牌了
+      // if (cardsOfA_.isEmpty()) {
+      //   landlordWins_ = (currentLandlord_ == 0);
+      //   sleep(50);
+      //   castToB("gameOver",
+      //           (landlordWins_ ^ (currentLandlord_ != 1)) ? "true" :
+      //           "false");
+      //   castToC("gameOver",
+      //           (landlordWins_ ^ (currentLandlord_ != 2)) ? "true" :
+      //           "false");
+      //   showWinOrLoseInfo();
+      //   showRestartOrExitBtnsOnSelfScreen();
+      //   return;
+      // }
+      AHasJustPushedCards(cardsToPush);
+
       sleep(50);
+
+      if (checkIfGameOver()) return;
+
       castToB("chuOrBuchu", "info");
     }
   });
@@ -432,10 +443,10 @@ void PlayerA::showChuOrBuchuBtns() {
 
 void PlayerA::AHasJustPushedCards(QList<int> cardsToPush) {
   cardsOnTable_ = cardsToPush;
-  cardsOnTable_.append(0);
   showTableOnSelfScreen(cardsOnTable_);
+  cardsOnTable_.append(0);
   sleep(50);
-  boardCast("someOneHasPushedCards", intArrayToString(cardsToPush));
+  boardCast("someOneHasPushedCards", intArrayToString(cardsOnTable_));
 }
 
 void PlayerA::showTableOnSelfScreen(const QList<int>&) {
@@ -519,4 +530,16 @@ void PlayerA::showWinOrLoseInfo() {
   winOrLoseLabel->setGeometry(200, 50, 800, 400);
   winOrLoseLabel->setFont(QFont("Helvetica", 48));
   winOrLoseLabel->show();
+}
+
+bool PlayerA::checkIfGameOver() {
+  for (int i = 0; i < cardsNum_.size(); ++i) {
+    if (cardsNum_[i] == 0) {
+      landlordWins_ = (currentLandlord_ == i);
+      showWinOrLoseInfo();
+      showRestartOrExitBtnsOnSelfScreen();
+      return true;
+    }
+  }
+  return false;
 }

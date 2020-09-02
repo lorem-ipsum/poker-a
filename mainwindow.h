@@ -95,6 +95,8 @@ class PlayerA : public QMainWindow {
 
   void showWinOrLoseInfo();
 
+  bool checkIfGameOver();
+
  private:
   // 图形界面
   QPushButton *buttonStartListening;
