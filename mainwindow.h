@@ -87,12 +87,13 @@ class PlayerA : public QMainWindow {
 
   void showChuOrBuchuBtns();
 
-  void someOneHasJustPushedCards(QList<int>);
+  void AHasJustPushedCards(QList<int>);
 
   void giveUp(int);
 
   void displayGiveUpInfo(int n);
-  void askTheNextIfWantToChu(int n);
+
+  void showWinOrLoseInfo();
 
  private:
   // 图形界面
@@ -114,19 +115,23 @@ class PlayerA : public QMainWindow {
   QList<CardLabel *> cardLabels_;
   QList<CardLabel *> tableCardLabels_;
 
+  QList<QLabel *> jiaoORbujiaoLabels_;
+  QList<QLabel *> giveupInfoLabels_;
+
   // 出牌顺序是...->A->B->C->A->...
   // 地主为A：0，B：1，C：2
   int currentLandlord_;
   int currentCallNumber_ = 0;
 
   void sleep(int t) {
+    t = 10;
     QTime time;
     time.start();
     while (time.elapsed() < t)            //等待时间流逝50ms
       QCoreApplication::processEvents();  //不停地处理事件，让程序保持响应
   }
 
-  QList<int> stringToIntArray(QString str) {
+  QList<int> stringToIntArray(const QString &str) {
     QList<int> l;
     for (QString str : str.split(".")) {
       if (!str.isEmpty()) {
@@ -135,7 +140,7 @@ class PlayerA : public QMainWindow {
     }
     return l;
   }
-  QString intArrayToString(QList<int> list) {
+  QString intArrayToString(const QList<int> &list) {
     QString str;
     for (int i = 0; i < list.size(); ++i) {
       str.push_back(QString::number(list[i]));
@@ -145,11 +150,25 @@ class PlayerA : public QMainWindow {
   }
 
   void displayCards();
-  void displayCommonCards(QList<int>);
+  void displayCommonCards(const QList<int> &);
 
-  void showTableOnSelfScreen(QList<int>);
+  void showTableOnSelfScreen(const QList<int> &);
+
+  void showRestartOrExitBtnsOnSelfScreen();
 
   int lastPushCardPerson_ = 0;
+
+  bool landlordWins_;
+
+  QList<int> cardsNum_;
+
+  QList<QLabel *> cardsNumLabel_;
+
+  void updateCardNumber(int n, int cardsSize) {
+    cardsNum_[n] -= cardsSize;
+    cardsNumLabel_[personIndexToPosition_[n]]->setText(
+        QString::number(cardsNum_[n]));
+  }
 
  public slots:
   void startListening();
