@@ -11,6 +11,7 @@
 // #include <QtTest>
 
 #include "cardlabel.h"
+#include "cards.h"
 
 class PlayerA : public QMainWindow {
   Q_OBJECT
@@ -86,7 +87,12 @@ class PlayerA : public QMainWindow {
 
   void showChuOrBuchuBtns();
 
+  void someOneHasJustPushedCards(QList<int>);
+
   void giveUp(int);
+
+  void displayGiveUpInfo(int n);
+  void askTheNextIfWantToChu(int n) { qDebug() << n + 1 << "was asked"; }
 
  private:
   // 图形界面
@@ -96,18 +102,22 @@ class PlayerA : public QMainWindow {
   QTcpSocket *socketAB_ = nullptr;
   QTcpSocket *socketAC_ = nullptr;
   const int portA_ = 10080;
+
+  int personIndexToPosition_[3] = {0, 1, 2};
+
   QList<int> cardsOfA_;
 
-  QList<CardLabel *> cardLabels_;
+  QList<int> commonCards_;
 
-  bool canHeOrSheGiveUp_ = false;
+  QList<int> cardsOnTable_;
+
+  QList<CardLabel *> cardLabels_;
+  QList<CardLabel *> tableCardLabels_;
 
   // 出牌顺序是...->A->B->C->A->...
   // 地主为A：0，B：1，C：2
   int currentLandlord_;
   int currentCallNumber_ = 0;
-
-  QList<int> commonCards_;
 
   void sleep(int t) {
     QTime time;
@@ -116,6 +126,15 @@ class PlayerA : public QMainWindow {
       QCoreApplication::processEvents();  //不停地处理事件，让程序保持响应
   }
 
+  QList<int> stringToIntArray(QString str) {
+    QList<int> l;
+    for (QString str : str.split(".")) {
+      if (!str.isEmpty()) {
+        l.append(str.toInt());
+      }
+    }
+    return l;
+  }
   QString intArrayToString(QList<int> list) {
     QString str;
     for (int i = 0; i < list.size(); ++i) {
@@ -126,7 +145,11 @@ class PlayerA : public QMainWindow {
   }
 
   void displayCards();
-  void displayCommonCards(QList<int> commonCards);
+  void displayCommonCards(QList<int>);
+
+  void showTableOnSelfScreen(QList<int>);
+
+  int lastPushCardPerson_ = -1;
 
  public slots:
   void startListening();
@@ -145,11 +168,7 @@ class PlayerA : public QMainWindow {
 
   void afterAllHaveCalled();
 
-  void pushCards();
-
-  void giveUp();
-
-  QList<int> cardsOnTable_;
+  // void pushCards();
 
  signals:
   // 所有人已经叫过地主了

@@ -67,6 +67,21 @@ void PlayerA::socketReadDataFromB() {
     ifWantToCampaign(1, doesBCampaign == "true");
     askIfCallLandlord(2);
   }
+
+  QString BPushedCards = readFromBuffer(buffer, "BHasPushedCards");
+  if (!BPushedCards.isEmpty()) {
+    QList<int> bcards = stringToIntArray(BPushedCards);
+    cardsOnTable_ = bcards;
+    showTableOnSelfScreen(cardsOnTable_);
+    castToC("someOneHasPushedCards", BPushedCards);
+    sleep(50);
+  }
+
+  QString BHasGivenUp = readFromBuffer(buffer, "BHasGivenUp");
+  if (!BHasGivenUp.isEmpty()) {
+    //展示，并发给C
+    //让C出牌
+  }
 }
 void PlayerA::socketReadDataFromC() {
   qDebug() << "A IS READING FROM BUFFER FROM C";
@@ -77,6 +92,15 @@ void PlayerA::socketReadDataFromC() {
     showOthersIfCampaignInfo(2, doesCCampaign == "true");
     ifWantToCampaign(2, doesCCampaign == "true");
     askIfCallLandlord(0);
+  }
+
+  QString CPushedCards = readFromBuffer(buffer, "CHasPushedCards");
+  if (!CPushedCards.isEmpty()) {
+    QList<int> ccards = stringToIntArray(CPushedCards);
+    cardsOnTable_ = ccards;
+    showTableOnSelfScreen(cardsOnTable_);
+    castToC("someOneHasPushedCards", CPushedCards);
+    sleep(50);
   }
 }
 void PlayerA::socketDisconnectedFromB() {}
@@ -222,8 +246,8 @@ void PlayerA::displayCards() {
   // 先删除之前的卡
   for (QLabel* item : cardLabels_) {
     item->hide();
-    delete item;
   }
+  cardLabels_.clear();
 
   // SHOW
   for (int i = 0; i < cardsOfA_.size(); ++i) {
@@ -291,23 +315,117 @@ void PlayerA::showChuOrBuchuBtns() {
   chuBtn->show();
   buchuBtn->show();
 
-  buchuBtn->setDisabled(!canHeOrSheGiveUp_);
+  // connect(chuBtn, SIGNAL(clicked()), chuBtn, SLOT(hide()));
+  // connect(chuBtn, SIGNAL(clicked()), buchuBtn, SLOT(hide()));
+  connect(buchuBtn, SIGNAL(clicked()), chuBtn, SLOT(hide()));
+  connect(buchuBtn, SIGNAL(clicked()), buchuBtn, SLOT(hide()));
+
+  buchuBtn->setDisabled(lastPushCardPerson_ == 0);
 
   // btn connect
-  connect(chuBtn, SIGNAL(clicked()), this, SLOT(pushCards()));
+  connect(chuBtn, &QPushButton::clicked, [=]() {
+    QList<int> cardsToPush;
+    for (int i = 0; i < cardsOfA_.size(); ++i) {
+      if (cardLabels_[i]->isMoved()) {
+        cardsToPush.append(cardsOfA_[i]);
+      }
+    }
+
+    qDebug() << "CHECKING...1";
+    if (CARDS_CMP(cardsToPush, cardsOnTable_)) {
+      qDebug() << "CHECKING...2";
+
+      // A不再展示出掉的牌
+      for (int i = 0; i < cardsToPush.size(); ++i) {
+        cardsOfA_.removeOne(cardsToPush[i]);
+      }
+      displayCards();
+
+      someOneHasJustPushedCards(cardsToPush);
+      lastPushCardPerson_ = 0;
+      // cardsOnTable_ = cardsToPush;
+      chuBtn->hide();
+      buchuBtn->hide();
+    }
+    sleep(50);
+    castToB("chuOrBuchu", "info");
+  });
   connect(buchuBtn, &QPushButton::clicked, [=]() { giveUp(0); });
 }
 
-void PlayerA::pushCards() {
-  QList<int> cardsToPush;
-  for (int i = 0; i < cardsOfA_.size(); ++i) {
-    if (cardLabels_[i]->isMoved()) {
-      cardsToPush.append(cardsOfA_[i]);
-    }
-  }
+// void PlayerA::pushCards() {
+//   QList<int> cardsToPush;
+//   for (int i = 0; i < cardsOfA_.size(); ++i) {
+//     if (cardLabels_[i]->isMoved()) {
+//       cardsToPush.append(cardsOfA_[i]);
+//     }
+//   }
 
-  // CHECK TODO
+//   qDebug() << "CHECKING...1";
+//   if (CARDS_CMP(cardsToPush, cardsOnTable_)) {
+//     qDebug() << "CHECKING...2";
+
+//     someOneHasJustPushedCards(cardsToPush);
+//     lastPushCardPerson_ == 0;
+//     // cardsOnTable_ = cardsToPush;
+//   }
+//   sleep(50);
+//   castToB("chuOrBuchu", "info");
+// }
+
+void PlayerA::someOneHasJustPushedCards(QList<int> cardsToPush) {
+  cardsOnTable_ = cardsToPush;
+  showTableOnSelfScreen(cardsOnTable_);
+  sleep(50);
+  boardCast("someOneHasPushedCards", intArrayToString(cardsToPush));
+}
+
+void PlayerA::showTableOnSelfScreen(QList<int>) {
+  // 先删除之前的卡
+  for (QLabel* item : tableCardLabels_) {
+    item->hide();
+  }
+  tableCardLabels_.clear();
+
+  // SHOW
+  for (int i = 0; i < cardsOnTable_.size(); ++i) {
+    CardLabel* cardLabel = new CardLabel(this);
+    tableCardLabels_.append(cardLabel);
+    QPixmap cardImage =
+        QPixmap("./assets/" + QString::number(cardsOnTable_[i]) + ".png");
+    cardImage = cardImage.scaled(QSize(330, 160), Qt::IgnoreAspectRatio,
+                                 Qt::SmoothTransformation);
+    cardLabel->setPixmap(cardImage);
+    cardLabel->setGeometry(500 + 50 * i, 250, 360, 200);
+    cardLabel->show();
+  }
 }
 
 // 第n人放弃了，转交给下一个人
-void PlayerA::giveUp(int n) {}
+void PlayerA::giveUp(int n) {
+  displayGiveUpInfo(n);
+  boardCast("someOneHasJustGivenUp", QString::number(n));
+  sleep(50);
+  askTheNextIfWantToChu(n);
+}
+
+void PlayerA::displayGiveUpInfo(int n) {
+  int personPosition = personIndexToPosition_[n];
+
+  if (personPosition == 0) {
+    QLabel* chuORbuchu = new QLabel(this);
+    chuORbuchu->setText("不出");
+    chuORbuchu->setGeometry(580, 400, 40, 32);
+    chuORbuchu->show();
+  } else if (personPosition == 1) {
+    QLabel* chuORbuchu = new QLabel(this);
+    chuORbuchu->setText("不出");
+    chuORbuchu->setGeometry(160, 200, 40, 32);
+    chuORbuchu->show();
+  } else if (personPosition == 2) {
+    QLabel* chuORbuchu = new QLabel(this);
+    chuORbuchu->setText("不出");
+    chuORbuchu->setGeometry(960, 200, 40, 32);
+    chuORbuchu->show();
+  }
+}

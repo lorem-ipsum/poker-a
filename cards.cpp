@@ -1,53 +1,4 @@
-#include <algorithm>
-#include <iostream>
-#include <vector>
-
-enum Suit { JOKER, SPADE, HEART, DIAMOND, CLUB };
-
-enum CardsType {
-  HIGH,        // 0 高牌
-  PAIR,        // 1 一对
-  THREE,       // 2 三条
-  THREE_ONE,   // 3 三带一
-  THREE_TWO,   // 4 三带二
-  FOUR,        // 5 炸弹
-  FOUR_TWO,    // 6 四带二
-  FOUR_PAIRS,  // 7 四带两对
-  PLANE,       // 8 飞机
-  ROW,         // 9 顺子
-  ROW2,        // 10 双顺
-  ROCKET,      // 11 王炸
-  ERROR,       // 12 没法儿出
-};
-
-struct Card {
-  Card(int v, Suit s) : value(v), suit(s) {}
-  bool operator==(const Card& rhs) { return value == rhs.value; }
-  bool operator!=(const Card& rhs) { return value != rhs.value; }
-  int value;  // 3-13, 14~A, 16~2, 18~小王, 20~大王
-  Suit suit;
-};
-
-class Cards {
- private:
-  std::vector<Card> cards_;
-
-  void sort_cards();
-  CardsType check_type();
-
-  CardsType type_;
-  int pivot_;
-
- public:
-  Cards(const std::vector<Card>& vec) : cards_(vec) {
-    sort_cards();
-    type_ = check_type();
-  }
-  CardsType type() { return type_; }
-
-  // c1输或平局: -1, c1赢: 1, 无法比较: 0
-  friend int CardsCmp(const Cards& c1, const Cards& c2);
-};
+#include "cards.h"
 
 void Cards::sort_cards() {
   std::sort(cards_.begin(), cards_.end(), [](const Card& c1, const Card& c2) {
@@ -369,31 +320,58 @@ int CardsCmp(const Cards& c1, const Cards& c2) {
   return 0;
 }
 
-int main() {
-  std::vector<Card> vec, vec2;
-  vec.push_back({3, SPADE});
-  vec.push_back({6, SPADE});
-  vec.push_back({10, SPADE});
-  vec.push_back({10, SPADE});
-  vec.push_back({10, SPADE});
-  vec.push_back({9, SPADE});
-  vec.push_back({9, SPADE});
-  vec.push_back({9, SPADE});
-  vec.push_back({8, SPADE});
-  vec.push_back({8, SPADE});
-  vec.push_back({8, SPADE});
-  vec.push_back({7, SPADE});
+bool CARDS_CMP(const QList<int>& c1, const QList<int>& c2) {
+  if (c1.isEmpty()) return false;
 
-  vec2.push_back({10, SPADE});
-  vec2.push_back({10, SPADE});
-  vec2.push_back({10, SPADE});
-  vec2.push_back({10, SPADE});
+  std::vector<Card> v1, v2;
+  for (int i = 0; i < c1.size(); ++i) {
+    v1.push_back({intToCardValue(c1[i]), intToCardType(c1[i])});
+  }
+  for (int i = 0; i < c2.size(); ++i) {
+    v2.push_back({intToCardValue(c2[i]), intToCardType(c2[i])});
+  }
 
-  Cards c(vec);
-  Cards c2(vec2);
+  Cards cs1(v1);
 
-  // std::cout << c.type() << std::endl;
+  if (c2.isEmpty()) return cs1.type() != ERROR;
 
-  std::cout << CardsCmp(c2, c) << std::endl;
-  return 0;
+  Cards cs2(v2);
+
+  if (cs1.type() == ERROR) {
+    return false;
+  } else if (c2.isEmpty()) {
+    return true;
+  }
+  return CardsCmp(v1, v2) == 1;
 }
+
+int intToCardValue(int x) {
+  int m = x / 4 + 3;
+  if (m <= 14) return m;
+
+  if (m == 15) return 16;  // 48, 49, 50, 51
+  if (x == 52) return 18;
+  if (x == 53) return 20;
+}
+
+Suit intToCardType(int x) {
+  if (x < 52) return static_cast<Suit>(x % 4);
+
+  return JOKER;
+}
+
+// int main() {
+//   std::vector<Card> vec, vec2;
+//   vec.push_back({3, SPADE});
+
+//   vec2.push_back({10, SPADE});
+//   vec2.push_back({10, SPADE});
+
+//   Cards c(vec);
+//   Cards c2(vec2);
+
+//   // std::cout << c.type() << std::endl;
+
+//   std::cout << CardsCmp(c2, c) << std::endl;
+//   return 0;
+// }
