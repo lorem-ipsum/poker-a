@@ -20,7 +20,13 @@ class PlayerA : public QMainWindow {
   PlayerA(QWidget *parent = nullptr);
   ~PlayerA();
 
+  void restart();
+
   void initGiveUpInfoLabels();
+
+  void initDizhuNongminLabels();
+
+  void initBuhefaLabel();
 
   template <typename Data>
   void boardCast(Data data) {
@@ -118,10 +124,12 @@ class PlayerA : public QMainWindow {
 
   QList<CardLabel *> cardLabels_;
   QList<CardLabel *> tableCardLabels_;
-  // QList<CardLabel *> giveupInfoLabels_;
+  QList<CardLabel *> commonCardLabels_;
 
   QList<QLabel *> jiaoORbujiaoLabels_;
   QList<QLabel *> giveupInfoLabels_;
+  QList<QLabel *> dizhuNongminLabels_;
+  QLabel *buhefaLabel_;
 
   // 出牌顺序是...->A->B->C->A->...
   // 地主为A：0，B：1，C：2
@@ -174,6 +182,14 @@ class PlayerA : public QMainWindow {
         QString::number(cardsNum_[n]));
   }
 
+  bool BWantsToRestart_ = false;
+  bool CWantsToRestart_ = false;
+
+  // Components used when gameover
+  QLabel *winOrLoseLabel_;
+  QPushButton *restartBtn_;
+  QPushButton *exitBtn_;
+
  public slots:
   void startListening();
 
@@ -198,5 +214,7 @@ class PlayerA : public QMainWindow {
   void allHaveCalled();  // send to b and c
 
   void nextOneToCampaign();
+
+  void BCBothWantToRestart();
 };
 #endif  // MAINWINDOW_H

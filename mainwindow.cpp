@@ -22,7 +22,42 @@ PlayerA::PlayerA(QWidget* parent) : QMainWindow(parent) {
 
   initGiveUpInfoLabels();
 
+  initDizhuNongminLabels();
+
+  initBuhefaLabel();
+
   // Game started
+}
+
+void PlayerA::restart() {
+  delete winOrLoseLabel_;
+  delete restartBtn_;
+  delete exitBtn_;
+
+  cardsOfA_.clear();
+  commonCards_.clear();
+  for (auto* i : commonCardLabels_) i->hide();
+  commonCardLabels_.clear();
+  cardsOnTable_.clear();
+  for (auto* i : cardLabels_) i->hide();
+  cardLabels_.clear();
+  for (auto* i : tableCardLabels_) i->hide();
+  tableCardLabels_.clear();
+  jiaoORbujiaoLabels_.clear();
+
+  currentLandlord_ = 0;
+  currentCallNumber_ = 0;
+  cardsNum_.clear();
+  for (auto* i : cardsNumLabel_) i->hide();
+  cardsNumLabel_.clear();
+
+  for (auto* i : dizhuNongminLabels_) i->hide();
+  for (auto* i : giveupInfoLabels_) i->hide();
+
+  if (BWantsToRestart_ && CWantsToRestart_)
+    startCampaign();
+  else
+    connect(this, &PlayerA::BCBothWantToRestart, [=]() { startCampaign(); });
 }
 
 void PlayerA::initGiveUpInfoLabels() {
@@ -36,6 +71,26 @@ void PlayerA::initGiveUpInfoLabels() {
   giveupInfoLabels_[0]->setGeometry(580, 400, 40, 32);
   giveupInfoLabels_[1]->setGeometry(160, 200, 40, 32);
   giveupInfoLabels_[2]->setGeometry(960, 200, 40, 32);
+}
+
+void PlayerA::initDizhuNongminLabels() {
+  for (int i = 0; i < 3; ++i) {
+    QLabel* dizhuNongminLabel = new QLabel(this);
+    dizhuNongminLabel->setText("身份不明");
+    dizhuNongminLabels_.append(dizhuNongminLabel);
+    dizhuNongminLabels_[i]->hide();
+  }
+
+  dizhuNongminLabels_[0]->setGeometry(580, 420, 40, 32);
+  dizhuNongminLabels_[1]->setGeometry(160, 168, 40, 32);
+  dizhuNongminLabels_[2]->setGeometry(960, 168, 40, 32);
+}
+
+void PlayerA::initBuhefaLabel() {
+  buhefaLabel_ = new QLabel(this);
+  buhefaLabel_->hide();
+  buhefaLabel_->setText("不合法");
+  buhefaLabel_->setGeometry(240, 500, 50, 50);
 }
 
 void PlayerA::startListening() {
@@ -109,6 +164,13 @@ void PlayerA::socketReadDataFromB() {
     giveupInfoLabels_[personIndexToPosition_[1]]->show();
     giveUp(1);
   }
+
+  QString restart = readFromBuffer(buffer, "restart");
+  if (!restart.isEmpty()) {
+    BWantsToRestart_ = true;
+    qDebug() << "BWantsToRestart_ = true;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;";
+    if (CWantsToRestart_) emit BCBothWantToRestart();
+  }
 }
 void PlayerA::socketReadDataFromC() {
   qDebug() << "A IS READING FROM BUFFER FROM C";
@@ -146,11 +208,21 @@ void PlayerA::socketReadDataFromC() {
     giveupInfoLabels_[personIndexToPosition_[2]]->show();
     giveUp(2);
   }
+
+  QString restart = readFromBuffer(buffer, "restart");
+  if (!restart.isEmpty()) {
+    CWantsToRestart_ = true;
+    qDebug() << "CWantsToRestart_ = true;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;";
+    if (BWantsToRestart_) emit BCBothWantToRestart();
+  }
 }
 void PlayerA::socketDisconnectedFromB() {}
 void PlayerA::socketDisconnectedFromC() {}
 
 void PlayerA::startCampaign() {
+  BWantsToRestart_ = false;
+  CWantsToRestart_ = false;
+
   QTime time = QTime::currentTime();
   qsrand(time.msec() + time.second() * 1000);
   int n = qrand() % 3;
@@ -198,7 +270,6 @@ void PlayerA::firstCampaign(int n) {
     commonCards_.append(cards_index[i]);
   }
 
-  n = 1;
   currentLandlord_ = n;
   askIfCallLandlord(n);
 }
@@ -305,6 +376,7 @@ void PlayerA::displayCards() {
 void PlayerA::displayCommonCards(const QList<int>& commonCards) {
   for (int i = 0; i < commonCards.size(); ++i) {
     CardLabel* cardLabel = new CardLabel(this);
+    commonCardLabels_.append(cardLabel);
     QPixmap cardImage =
         QPixmap("./assets/" + QString::number(commonCards[i]) + ".png");
     cardImage = cardImage.scaled(QSize(330, 160), Qt::IgnoreAspectRatio,
@@ -330,6 +402,11 @@ void PlayerA::afterAllHaveCalled() {
   }
   sleep(50);
   boardCast("theLandlordIs", QString::number(currentLandlord_));
+  for (int i = 0; i < 3; ++i) {
+    dizhuNongminLabels_[personIndexToPosition_[i]]->setText(
+        currentLandlord_ == i ? "地主" : "农民");
+    dizhuNongminLabels_[personIndexToPosition_[i]]->show();
+  }
   sleep(50);
 
   for (int i = 0; i < 3; ++i) {
@@ -392,7 +469,7 @@ void PlayerA::showChuOrBuchuBtns() {
     qDebug() << "CHECKING...1";
     if (CARDS_CMP(cardsToPush, cardsOnTable_)) {
       qDebug() << "CHECKING...2";
-
+      buhefaLabel_->hide();
       updateCardNumber(0, cardsToPush.size());
 
       chuBtn->hide();
@@ -406,20 +483,6 @@ void PlayerA::showChuOrBuchuBtns() {
 
       lastPushCardPerson_ = 0;
 
-      // // A出完牌了
-      // if (cardsOfA_.isEmpty()) {
-      //   landlordWins_ = (currentLandlord_ == 0);
-      //   sleep(50);
-      //   castToB("gameOver",
-      //           (landlordWins_ ^ (currentLandlord_ != 1)) ? "true" :
-      //           "false");
-      //   castToC("gameOver",
-      //           (landlordWins_ ^ (currentLandlord_ != 2)) ? "true" :
-      //           "false");
-      //   showWinOrLoseInfo();
-      //   showRestartOrExitBtnsOnSelfScreen();
-      //   return;
-      // }
       AHasJustPushedCards(cardsToPush);
 
       sleep(50);
@@ -427,9 +490,12 @@ void PlayerA::showChuOrBuchuBtns() {
       if (checkIfGameOver()) return;
 
       castToB("chuOrBuchu", "info");
+    } else {
+      buhefaLabel_->show();
     }
   });
   connect(buchuBtn, &QPushButton::clicked, [=]() {
+    buhefaLabel_->hide();
     chuBtn->hide();
     buchuBtn->hide();
     giveUp(0);
@@ -479,30 +545,28 @@ void PlayerA::giveUp(int n) {
 }
 
 void PlayerA::showRestartOrExitBtnsOnSelfScreen() {
-  QPushButton* restartBtn = new QPushButton(this);
-  QPushButton* exitBtn = new QPushButton(this);
+  restartBtn_ = new QPushButton(this);
+  exitBtn_ = new QPushButton(this);
 
-  restartBtn->setText("重新开始");
-  exitBtn->setText("退出");
-  restartBtn->setGeometry(970, 500, 50, 50);
-  exitBtn->setGeometry(1030, 500, 50, 50);
-  restartBtn->show();
-  exitBtn->show();
+  restartBtn_->setText("重新开始");
+  exitBtn_->setText("退出");
+  restartBtn_->setGeometry(970, 500, 50, 50);
+  exitBtn_->setGeometry(1030, 500, 50, 50);
+  restartBtn_->show();
+  exitBtn_->show();
 
-  connect(exitBtn, SIGNAL(clicked()), qApp, SLOT(exit()));
+  connect(exitBtn_, SIGNAL(clicked()), QApplication::instance(), SLOT(quit()));
 
-  connect(restartBtn, &QPushButton::clicked, [=]() {
-    // 等待另外两者连接
-  });
+  connect(restartBtn_, &QPushButton::clicked, [=]() { restart(); });
 }
 
 void PlayerA::showWinOrLoseInfo() {
-  QLabel* winOrLoseLabel = new QLabel(this);
-  winOrLoseLabel->setText(
+  winOrLoseLabel_ = new QLabel(this);
+  winOrLoseLabel_->setText(
       currentLandlord_ != 0 ^ landlordWins_ ? "YOU WIN!!!" : "YOU LOSE!!!");
-  winOrLoseLabel->setGeometry(200, 50, 800, 400);
-  winOrLoseLabel->setFont(QFont("Helvetica", 48));
-  winOrLoseLabel->show();
+  winOrLoseLabel_->setGeometry(200, 50, 800, 400);
+  winOrLoseLabel_->setFont(QFont("Helvetica", 48));
+  winOrLoseLabel_->show();
 }
 
 bool PlayerA::checkIfGameOver() {
