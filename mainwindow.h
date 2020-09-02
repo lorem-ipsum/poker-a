@@ -92,7 +92,7 @@ class PlayerA : public QMainWindow {
   void giveUp(int);
 
   void displayGiveUpInfo(int n);
-  void askTheNextIfWantToChu(int n) { qDebug() << n + 1 << "was asked"; }
+  void askTheNextIfWantToChu(int n);
 
  private:
   // 图形界面
@@ -149,7 +149,7 @@ class PlayerA : public QMainWindow {
 
   void showTableOnSelfScreen(QList<int>);
 
-  int lastPushCardPerson_ = -1;
+  int lastPushCardPerson_ = 0;
 
  public slots:
   void startListening();

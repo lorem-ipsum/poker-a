@@ -70,17 +70,22 @@ void PlayerA::socketReadDataFromB() {
 
   QString BPushedCards = readFromBuffer(buffer, "BHasPushedCards");
   if (!BPushedCards.isEmpty()) {
+    lastPushCardPerson_ = 1;
     QList<int> bcards = stringToIntArray(BPushedCards);
     cardsOnTable_ = bcards;
     showTableOnSelfScreen(cardsOnTable_);
     castToC("someOneHasPushedCards", BPushedCards);
     sleep(50);
+    castToC("chuOrBuchu", "info");
   }
 
   QString BHasGivenUp = readFromBuffer(buffer, "BHasGivenUp");
   if (!BHasGivenUp.isEmpty()) {
-    //展示，并发给C
-    //让C出牌
+    // //展示，并发给C
+    // displayGiveUpInfo(1);
+    // //让C出牌
+    // castToC("chuOrBuchu", "info");
+    giveUp(1);
   }
 }
 void PlayerA::socketReadDataFromC() {
@@ -96,11 +101,19 @@ void PlayerA::socketReadDataFromC() {
 
   QString CPushedCards = readFromBuffer(buffer, "CHasPushedCards");
   if (!CPushedCards.isEmpty()) {
+    lastPushCardPerson_ = 2;
     QList<int> ccards = stringToIntArray(CPushedCards);
     cardsOnTable_ = ccards;
     showTableOnSelfScreen(cardsOnTable_);
-    castToC("someOneHasPushedCards", CPushedCards);
+    castToB("someOneHasPushedCards", CPushedCards);
     sleep(50);
+    showChuOrBuchuBtns();
+  }
+
+  QString CHasGivenUp = readFromBuffer(buffer, "CHasGivenUp");
+  if (!CHasGivenUp.isEmpty()) {
+    //展示，并发给B
+    giveUp(2);
   }
 }
 void PlayerA::socketDisconnectedFromB() {}
@@ -321,6 +334,9 @@ void PlayerA::showChuOrBuchuBtns() {
   connect(buchuBtn, SIGNAL(clicked()), buchuBtn, SLOT(hide()));
 
   buchuBtn->setDisabled(lastPushCardPerson_ == 0);
+  if (lastPushCardPerson_ == 0) {
+    cardsOnTable_ = {};
+  }
 
   // btn connect
   connect(chuBtn, &QPushButton::clicked, [=]() {
@@ -406,7 +422,12 @@ void PlayerA::giveUp(int n) {
   displayGiveUpInfo(n);
   boardCast("someOneHasJustGivenUp", QString::number(n));
   sleep(50);
-  askTheNextIfWantToChu(n);
+  if (n == 0)
+    castToB("chuOrBuchu", "info");
+  else if (n == 1)
+    castToC("chuOrBuchu", "info");
+  else if (n == 2)
+    showChuOrBuchuBtns();
 }
 
 void PlayerA::displayGiveUpInfo(int n) {
@@ -429,3 +450,5 @@ void PlayerA::displayGiveUpInfo(int n) {
     chuORbuchu->show();
   }
 }
+
+void PlayerA::askTheNextIfWantToChu(int n) {}
