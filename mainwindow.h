@@ -20,6 +20,8 @@ class PlayerA : public QMainWindow {
   PlayerA(QWidget *parent = nullptr);
   ~PlayerA();
 
+  void initGiveUpInfoLabels();
+
   template <typename Data>
   void boardCast(Data data) {
     if (!socketAB_ || socketAC_) qDebug() << "Connection lost!";
@@ -116,6 +118,7 @@ class PlayerA : public QMainWindow {
 
   QList<CardLabel *> cardLabels_;
   QList<CardLabel *> tableCardLabels_;
+  // QList<CardLabel *> giveupInfoLabels_;
 
   QList<QLabel *> jiaoORbujiaoLabels_;
   QList<QLabel *> giveupInfoLabels_;
@@ -126,7 +129,6 @@ class PlayerA : public QMainWindow {
   int currentCallNumber_ = 0;
 
   void sleep(int t) {
-    t = 10;
     QTime time;
     time.start();
     while (time.elapsed() < t)            //等待时间流逝50ms

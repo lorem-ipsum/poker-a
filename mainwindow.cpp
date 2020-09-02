@@ -20,7 +20,22 @@ PlayerA::PlayerA(QWidget* parent) : QMainWindow(parent) {
           SLOT(startListening()));
   connect(this, SIGNAL(allHaveCalled()), this, SLOT(afterAllHaveCalled()));
 
+  initGiveUpInfoLabels();
+
   // Game started
+}
+
+void PlayerA::initGiveUpInfoLabels() {
+  for (int i = 0; i < 3; ++i) {
+    QLabel* giveupLabel = new QLabel(this);
+    giveupLabel->setText("不出");
+    giveupInfoLabels_.append(giveupLabel);
+    giveupInfoLabels_[i]->hide();
+  }
+
+  giveupInfoLabels_[0]->setGeometry(580, 400, 40, 32);
+  giveupInfoLabels_[1]->setGeometry(160, 200, 40, 32);
+  giveupInfoLabels_[2]->setGeometry(960, 200, 40, 32);
 }
 
 void PlayerA::startListening() {
@@ -71,6 +86,8 @@ void PlayerA::socketReadDataFromB() {
 
   QString BPushedCards = readFromBuffer(buffer, "BHasPushedCards");
   if (!BPushedCards.isEmpty()) {
+    giveupInfoLabels_[personIndexToPosition_[1]]->hide();
+
     lastPushCardPerson_ = 1;
     QList<int> bcards = stringToIntArray(BPushedCards);
 
@@ -89,22 +106,9 @@ void PlayerA::socketReadDataFromB() {
 
   QString BHasGivenUp = readFromBuffer(buffer, "BHasGivenUp");
   if (!BHasGivenUp.isEmpty()) {
-    // //展示，并发给C
-    // displayGiveUpInfo(1);
-    // //让C出牌
-    // castToC("chuOrBuchu", "info");
+    giveupInfoLabels_[personIndexToPosition_[1]]->show();
     giveUp(1);
   }
-
-  // QString doesLandlordWin = readFromBuffer(buffer, "gameOver");
-  // if (!doesLandlordWin.isEmpty()) {
-  //   qDebug() << "B has won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-  //   landlordWins_ = doesLandlordWin == "true";
-  //   castToC("gameOver",
-  //           (landlordWins_ ^ (currentLandlord_ != 2)) ? "true" : "false");
-  //   showWinOrLoseInfo();
-  //   showRestartOrExitBtnsOnSelfScreen();
-  // }
 }
 void PlayerA::socketReadDataFromC() {
   qDebug() << "A IS READING FROM BUFFER FROM C";
@@ -119,6 +123,8 @@ void PlayerA::socketReadDataFromC() {
 
   QString CPushedCards = readFromBuffer(buffer, "CHasPushedCards");
   if (!CPushedCards.isEmpty()) {
+    giveupInfoLabels_[personIndexToPosition_[2]]->hide();
+
     lastPushCardPerson_ = 2;
     QList<int> ccards = stringToIntArray(CPushedCards);
 
@@ -137,20 +143,9 @@ void PlayerA::socketReadDataFromC() {
 
   QString CHasGivenUp = readFromBuffer(buffer, "CHasGivenUp");
   if (!CHasGivenUp.isEmpty()) {
-    //展示，并发给B
+    giveupInfoLabels_[personIndexToPosition_[2]]->show();
     giveUp(2);
   }
-
-  // QString doesLandlordWin = readFromBuffer(buffer, "gameOver");
-  // qDebug() << "doesLandlordWin = " << doesLandlordWin <<
-  // "********************"; if (!doesLandlordWin.isEmpty()) {
-  //   qDebug() << "C has won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
-  //   landlordWins_ = doesLandlordWin == "true";
-  //   castToB("gameOver",
-  //           (landlordWins_ ^ (currentLandlord_ != 1)) ? "true" : "false");
-  //   showWinOrLoseInfo();
-  //   showRestartOrExitBtnsOnSelfScreen();
-  // }
 }
 void PlayerA::socketDisconnectedFromB() {}
 void PlayerA::socketDisconnectedFromC() {}
@@ -472,7 +467,7 @@ void PlayerA::showTableOnSelfScreen(const QList<int>&) {
 
 // 第n人放弃了，转交给下一个人
 void PlayerA::giveUp(int n) {
-  displayGiveUpInfo(n);
+  giveupInfoLabels_[personIndexToPosition_[n]]->show();
   boardCast("someOneHasJustGivenUp", QString::number(n));
   sleep(50);
   if (n == 0)
@@ -481,28 +476,6 @@ void PlayerA::giveUp(int n) {
     castToC("chuOrBuchu", "info");
   else if (n == 2)
     showChuOrBuchuBtns();
-}
-
-void PlayerA::displayGiveUpInfo(int n) {
-  int personPosition = personIndexToPosition_[n];
-
-  if (giveupInfoLabels_.size() < 3) {
-    for (int i = 0; i < 3; ++i) {
-      QLabel* giveupLabel = new QLabel(this);
-      giveupLabel->setText("不出");
-      giveupInfoLabels_.append(giveupLabel);
-    }
-  }
-
-  if (personPosition == 0) {
-    giveupInfoLabels_[personPosition]->setGeometry(580, 400, 40, 32);
-  } else if (personPosition == 1) {
-    giveupInfoLabels_[personPosition]->setGeometry(160, 200, 40, 32);
-  } else if (personPosition == 2) {
-    giveupInfoLabels_[personPosition]->setGeometry(960, 200, 40, 32);
-  }
-
-  giveupInfoLabels_[personPosition]->show();
 }
 
 void PlayerA::showRestartOrExitBtnsOnSelfScreen() {
