@@ -292,8 +292,8 @@ void PlayerA::askIfCallLandlord(int n) {
     QPushButton* yesBtn = new QPushButton(this);
     QPushButton* noBtn = new QPushButton(this);
 
-    yesBtn->setText("Yes");
-    noBtn->setText("No");
+    yesBtn->setText("叫地主");
+    noBtn->setText("不叫");
     yesBtn->setGeometry(120, 500, 50, 50);
     noBtn->setGeometry(180, 500, 50, 50);
     yesBtn->show();
