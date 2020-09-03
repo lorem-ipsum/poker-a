@@ -68,7 +68,7 @@ void PlayerA::initGiveUpInfoLabels() {
     giveupInfoLabels_[i]->hide();
   }
 
-  giveupInfoLabels_[0]->setGeometry(580, 400, 40, 32);
+  giveupInfoLabels_[0]->setGeometry(580, 440, 40, 32);
   giveupInfoLabels_[1]->setGeometry(160, 200, 40, 32);
   giveupInfoLabels_[2]->setGeometry(960, 200, 40, 32);
 }
@@ -469,6 +469,8 @@ void PlayerA::showChuOrBuchuBtns() {
     qDebug() << "CHECKING...1";
     if (CARDS_CMP(cardsToPush, cardsOnTable_)) {
       qDebug() << "CHECKING...2";
+      giveupInfoLabels_[personIndexToPosition_[0]]->hide();
+
       buhefaLabel_->hide();
       updateCardNumber(0, cardsToPush.size());
 
