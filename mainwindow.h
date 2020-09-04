@@ -184,6 +184,7 @@ class PlayerA : public QMainWindow {
 
   bool BWantsToRestart_ = false;
   bool CWantsToRestart_ = false;
+  bool gameStarted_ = false;
 
   // Components used when gameover
   QLabel *winOrLoseLabel_;

@@ -36,19 +36,19 @@ void PlayerA::restart() {
 
   cardsOfA_.clear();
   commonCards_.clear();
-  for (auto* i : commonCardLabels_) i->hide();
+  for (auto* i : commonCardLabels_) delete i;
   commonCardLabels_.clear();
   cardsOnTable_.clear();
-  for (auto* i : cardLabels_) i->hide();
+  for (auto* i : cardLabels_) delete i;
   cardLabels_.clear();
-  for (auto* i : tableCardLabels_) i->hide();
+  for (auto* i : tableCardLabels_) delete i;
   tableCardLabels_.clear();
   jiaoORbujiaoLabels_.clear();
 
   currentLandlord_ = 0;
   currentCallNumber_ = 0;
   cardsNum_.clear();
-  for (auto* i : cardsNumLabel_) i->hide();
+  for (auto* i : cardsNumLabel_) delete i;
   cardsNumLabel_.clear();
 
   for (auto* i : dizhuNongminLabels_) i->hide();
@@ -222,6 +222,8 @@ void PlayerA::socketDisconnectedFromC() {}
 void PlayerA::startCampaign() {
   BWantsToRestart_ = false;
   CWantsToRestart_ = false;
+  if (gameStarted_) return;
+  gameStarted_ = true;
 
   QTime time = QTime::currentTime();
   qsrand(time.msec() + time.second() * 1000);
@@ -247,6 +249,7 @@ void PlayerA::firstCampaign(int n) {
   std::sort(cards_index.begin() + 34, cards_index.begin() + 51);
   std::sort(cards_index.begin() + 51, cards_index.begin() + 54);
 
+  cardsOfA_.clear();
   for (int i = 0; i < 17; ++i) {
     cardsOfA_.append(cards_index[i]);
   }
@@ -266,9 +269,13 @@ void PlayerA::firstCampaign(int n) {
   }
   castToC("cardsAssignedToC", cc);
 
+  commonCards_.clear();
   for (int i = 51; i < 54; ++i) {
     commonCards_.append(cards_index[i]);
   }
+  sleep(50);
+  displayCommonCards({99, 99, 99});
+  boardCast("commonCards", intArrayToString({99, 99, 99}));
 
   currentLandlord_ = n;
   askIfCallLandlord(n);
@@ -280,6 +287,8 @@ void PlayerA::askIfCallLandlord(int n) {
 
   // 检查是否所有人都叫过地主了
   ++currentCallNumber_;
+  qDebug() << "currentCallNumber_ =" << currentCallNumber_
+           << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
   if (currentCallNumber_ == 4) {
     emit allHaveCalled();
     return;
@@ -355,7 +364,7 @@ void PlayerA::showOthersIfCampaignInfo(int personPosition, bool ifCampaign) {
 void PlayerA::displayCards() {
   // 先删除之前的卡
   for (QLabel* item : cardLabels_) {
-    item->hide();
+    delete item;
   }
   cardLabels_.clear();
 
@@ -374,6 +383,8 @@ void PlayerA::displayCards() {
 }
 
 void PlayerA::displayCommonCards(const QList<int>& commonCards) {
+  for (auto* i : commonCardLabels_) delete i;
+  commonCardLabels_.clear();
   for (int i = 0; i < commonCards.size(); ++i) {
     CardLabel* cardLabel = new CardLabel(this);
     commonCardLabels_.append(cardLabel);
@@ -577,6 +588,7 @@ bool PlayerA::checkIfGameOver() {
       landlordWins_ = (currentLandlord_ == i);
       showWinOrLoseInfo();
       showRestartOrExitBtnsOnSelfScreen();
+      gameStarted_ = false;
       return true;
     }
   }
